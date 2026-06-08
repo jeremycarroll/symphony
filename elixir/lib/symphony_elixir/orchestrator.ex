@@ -784,11 +784,23 @@ defmodule SymphonyElixir.Orchestrator do
   defp sort_issues_for_dispatch(issues) when is_list(issues) do
     Enum.sort_by(issues, fn
       %Issue{} = issue ->
-        {priority_rank(issue.priority), issue_created_at_sort_key(issue), issue.identifier || issue.id || ""}
+        {
+          ci_polling_rank(issue),
+          priority_rank(issue.priority),
+          issue_created_at_sort_key(issue),
+          issue.identifier || issue.id || ""
+        }
 
       _ ->
-        {priority_rank(nil), issue_created_at_sort_key(nil), ""}
+        {0, priority_rank(nil), issue_created_at_sort_key(nil), ""}
     end)
+  end
+
+  defp ci_polling_rank(%Issue{state: state, priority: priority}) do
+    waiting_for_ci? = normalize_issue_state(state) == normalize_issue_state("Waiting for CI")
+    urgent_or_high? = priority_rank(priority) in [1, 2]
+
+    if waiting_for_ci? and not urgent_or_high?, do: 1, else: 0
   end
 
   defp priority_rank(priority) when is_integer(priority) and priority in 1..4, do: priority

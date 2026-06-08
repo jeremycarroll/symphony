@@ -508,6 +508,44 @@ defmodule SymphonyElixir.WorkspaceAndConfigTest do
     assert Enum.map(sorted, & &1.identifier) == ["MT-200", "MT-201", "MT-199"]
   end
 
+  test "orchestrator deprioritizes non-urgent waiting-for-ci work" do
+    normal_waiting_for_ci = %Issue{
+      id: "issue-normal-waiting",
+      identifier: "MT-200",
+      title: "Normal CI polling",
+      state: "Waiting for CI",
+      priority: 3,
+      created_at: ~U[2026-01-01 00:00:00Z]
+    }
+
+    low_todo = %Issue{
+      id: "issue-low-todo",
+      identifier: "MT-201",
+      title: "Low priority implementation",
+      state: "Todo",
+      priority: 4,
+      created_at: ~U[2026-01-02 00:00:00Z]
+    }
+
+    urgent_waiting_for_ci = %Issue{
+      id: "issue-urgent-waiting",
+      identifier: "MT-202",
+      title: "Urgent CI polling",
+      state: "Waiting for CI",
+      priority: 1,
+      created_at: ~U[2026-01-03 00:00:00Z]
+    }
+
+    sorted =
+      Orchestrator.sort_issues_for_dispatch_for_test([
+        normal_waiting_for_ci,
+        low_todo,
+        urgent_waiting_for_ci
+      ])
+
+    assert Enum.map(sorted, & &1.identifier) == ["MT-202", "MT-201", "MT-200"]
+  end
+
   test "todo issue with non-terminal blocker is not dispatch-eligible" do
     state = %Orchestrator.State{
       max_concurrent_agents: 3,
