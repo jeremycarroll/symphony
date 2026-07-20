@@ -2,6 +2,8 @@
 tracker:
   kind: linear
   project_slug: "symphony-0c79b11b75ea"
+  # Use team_key instead of project_slug for team-scoped polling.
+  # team_key: ABC
   required_labels: []
   active_states:
     - Todo
@@ -30,7 +32,7 @@ agent:
   max_concurrent_agents: 10
   max_turns: 20
 codex:
-  command: codex --config shell_environment_policy.inherit=all --config 'model="gpt-5.5"' --config model_reasoning_effort=xhigh app-server
+  command: codex --enable apps --config shell_environment_policy.inherit=all --config 'model="gpt-5.5"' --config model_reasoning_effort=xhigh app-server
   approval_policy: never
   thread_sandbox: workspace-write
   turn_sandbox_policy:

@@ -46,7 +46,15 @@ defmodule SymphonyElixir.CoreTest do
       tracker_project_slug: nil
     )
 
-    assert {:error, :missing_linear_project_slug} = Config.validate!()
+    assert {:error, :missing_linear_issue_selector} = Config.validate!()
+
+    write_workflow_file!(Workflow.workflow_file_path(),
+      tracker_project_slug: nil,
+      tracker_team_key: "ABC"
+    )
+
+    assert :ok = Config.validate!()
+    assert Config.settings!().tracker.team_key == "ABC"
 
     write_workflow_file!(Workflow.workflow_file_path(),
       tracker_project_slug: "project",
@@ -99,7 +107,7 @@ defmodule SymphonyElixir.CoreTest do
     tracker = Map.get(config, "tracker", %{})
     assert is_map(tracker)
     assert Map.get(tracker, "kind") == "linear"
-    assert is_binary(Map.get(tracker, "project_slug"))
+    assert is_binary(Map.get(tracker, "project_slug")) or is_binary(Map.get(tracker, "team_key"))
     assert is_list(Map.get(tracker, "active_states"))
     assert is_list(Map.get(tracker, "terminal_states"))
 
@@ -886,6 +894,76 @@ defmodule SymphonyElixir.CoreTest do
 
   test "fetch issues by states with empty state set is a no-op" do
     assert {:ok, []} = Client.fetch_issues_by_states([])
+  end
+
+  test "linear polling can select issues by team key" do
+    graphql_fun = fn query, variables ->
+      send(self(), {:poll_issues, query, variables})
+
+      {:ok,
+       %{
+         "data" => %{
+           "issues" => %{
+             "nodes" => [],
+             "pageInfo" => %{"hasNextPage" => false, "endCursor" => nil}
+           }
+         }
+       }}
+    end
+
+    assert {:ok, []} =
+             Client.fetch_issues_by_selector_for_test(
+               %{project_slug: nil, team_key: "ABC"},
+               ["Todo", "Rework"],
+               graphql_fun
+             )
+
+    assert_receive {:poll_issues, query,
+                    %{
+                      teamKey: "ABC",
+                      stateNames: ["Todo", "Rework"],
+                      first: 50,
+                      relationFirst: 50,
+                      after: nil
+                    }}
+
+    assert query =~ "SymphonyLinearPollByTeam"
+    assert query =~ "team: {key: {eq: $teamKey}}"
+  end
+
+  test "linear polling keeps project slug precedence when both selectors are configured" do
+    graphql_fun = fn query, variables ->
+      send(self(), {:poll_issues, query, variables})
+
+      {:ok,
+       %{
+         "data" => %{
+           "issues" => %{
+             "nodes" => [],
+             "pageInfo" => %{"hasNextPage" => false, "endCursor" => nil}
+           }
+         }
+       }}
+    end
+
+    assert {:ok, []} =
+             Client.fetch_issues_by_selector_for_test(
+               %{project_slug: "project", team_key: "ABC"},
+               ["Todo"],
+               graphql_fun
+             )
+
+    assert_receive {:poll_issues, query,
+                    %{
+                      projectSlug: "project",
+                      stateNames: ["Todo"],
+                      first: 50,
+                      relationFirst: 50,
+                      after: nil
+                    }}
+
+    assert query =~ "SymphonyLinearPollByProject"
+    refute query =~ "team: {key: {eq: $teamKey}}"
   end
 
   test "prompt builder renders issue and attempt values from workflow template" do

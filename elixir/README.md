@@ -94,7 +94,7 @@ Minimal example:
 ---
 tracker:
   kind: linear
-  project_slug: "..."
+  team_key: ABC
 workspace:
   root: ~/code/workspaces
 hooks:
@@ -115,6 +115,9 @@ Title: {{ issue.title }} Body: {{ issue.description }}
 Notes:
 
 - If a value is missing, defaults are used.
+- Linear workflows must set either `tracker.team_key` to process active issues for a team or
+  `tracker.project_slug` to limit polling to a single Linear project. When both are set,
+  `project_slug` takes precedence.
 - `tracker.required_labels` is optional. When set, an issue must have every
   configured label to dispatch or continue running. Label matching ignores
   case and surrounding whitespace. A blank configured label matches no issue.
@@ -130,6 +133,9 @@ Notes:
 - Workflows that run package managers or other commands that resolve external hosts should set
   `networkAccess: true` in `codex.turn_sandbox_policy`; otherwise DNS/network access may be denied
   by the Codex turn sandbox.
+- Workflows that need installed Codex app connector tools, such as Google Drive for linked Docs,
+  should include `--enable apps` in `codex.command`; otherwise app connector tools may not be
+  exposed to unattended app-server sessions even when the plugin is installed.
 - `agent.max_turns` caps how many back-to-back Codex turns Symphony will run in a single agent
   invocation when a turn completes normally but the issue is still in an active state. Default: `20`.
 - If the Markdown body is blank, Symphony uses a default prompt template that includes the issue

@@ -357,7 +357,12 @@ Fields:
   - Canonical environment variable for `tracker.kind == "linear"`: `LINEAR_API_KEY`.
   - If `$VAR_NAME` resolves to an empty string, treat the key as missing.
 - `project_slug` (string)
-  - REQUIRED for dispatch when `tracker.kind == "linear"`.
+  - OPTIONAL Linear project `slugId` selector.
+  - When present, dispatch is limited to matching issues in that project.
+  - Takes precedence over `team_key` when both are configured.
+- `team_key` (string)
+  - OPTIONAL Linear team key selector, for example `ABC`.
+  - Required for dispatch when `tracker.kind == "linear"` and `project_slug` is unset.
 - `required_labels` (list of strings)
   - Default: `[]`.
   - An issue MUST contain every configured label to dispatch or continue.
@@ -566,7 +571,8 @@ Validation checks:
 - Workflow file can be loaded and parsed.
 - `tracker.kind` is present and supported.
 - `tracker.api_key` is present after `$` resolution.
-- `tracker.project_slug` is present when REQUIRED by the selected tracker kind.
+- At least one Linear issue selector is present when REQUIRED by the selected tracker kind:
+  `tracker.project_slug` or `tracker.team_key`.
 - `codex.command` is present and non-empty.
 
 ### 6.4 Core Config Fields Summary (Cheat Sheet)
@@ -578,7 +584,9 @@ not require recognizing or validating extension fields unless that extension is 
 - `tracker.kind`: string, REQUIRED, currently `linear`
 - `tracker.endpoint`: string, default `https://api.linear.app/graphql` when `tracker.kind=linear`
 - `tracker.api_key`: string or `$VAR`, canonical env `LINEAR_API_KEY` when `tracker.kind=linear`
-- `tracker.project_slug`: string, REQUIRED when `tracker.kind=linear`
+- `tracker.project_slug`: string, OPTIONAL Linear project selector
+- `tracker.team_key`: string, OPTIONAL Linear team selector; REQUIRED when `tracker.kind=linear` and
+  `tracker.project_slug` is unset
 - `tracker.required_labels`: list of strings, default `[]`
 - `tracker.active_states`: list of strings, default `["Todo", "In Progress"]`
 - `tracker.terminal_states`: list of strings, default `["Closed", "Cancelled", "Canceled", "Duplicate", "Done"]`
@@ -1161,7 +1169,9 @@ Linear-specific requirements for `tracker.kind == "linear"`:
 - GraphQL endpoint (default `https://api.linear.app/graphql`)
 - Auth token sent in `Authorization` header
 - `tracker.project_slug` maps to Linear project `slugId`
-- Candidate issue query filters project using `project: { slugId: { eq: $projectSlug } }`
+- `tracker.team_key` maps to Linear team `key`
+- Candidate issue query filters using `project: { slugId: { eq: $projectSlug } }` when
+  `tracker.project_slug` is configured, otherwise using `team: { key: { eq: $teamKey } }`
 - Candidate and issue-state refresh queries include issue labels. Required
   label filtering happens after normalization so refresh can observe label
   removal and stop or release existing work.
@@ -1197,7 +1207,7 @@ RECOMMENDED error categories:
 
 - `unsupported_tracker_kind`
 - `missing_tracker_api_key`
-- `missing_tracker_project_slug`
+- `missing_linear_issue_selector`
 - `linear_api_request` (transport failures)
 - `linear_api_status` (non-200 HTTP)
 - `linear_graphql_errors`
